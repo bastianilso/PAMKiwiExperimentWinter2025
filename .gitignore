@@ -1,0 +1,8 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.~lock*
+data/
+sounddata/
+table.txt
