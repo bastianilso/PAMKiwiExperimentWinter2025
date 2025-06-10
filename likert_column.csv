@@ -1,0 +1,24 @@
+name;type
+Game;string
+Condition;string
+Color;string
+Order;int
+Participant;int
+Problems;string
+Comment;string
+Gender;string
+Age;int
+Det var sjovt at spille;int
+Det var kedeligt at spille;int
+Hvor godt synes du, at spillet gik?;int
+Hvor svært var spillet du spillede?;int
+Mit resultat i denne omgang skyldets hvordan BCI hætten målte mine bevægelser.;int
+Mit resultat i denne omgang skyldets min egen evne til at løfte håndfladen.;int
+Mit resultat i denne omgang skyldets ting der skete undervejs i spillet.;int
+Vurder din oplevelse af at kiwi fuglen ikke kunne hoppe over forhindringen. Hvor tit oplevede du det?;int
+Hvor frustreret følte du dig da du spillede denne omgang, alt i alt?;int
+Jeg følte jeg have kontrol over hvornår på trampolinen kiwi fuglen hoppede.;int
+Hvor meget kontrol over spillet havde du i denne omgang?;int
+Hvor meget hjælp fik du?;int
+Hvor godt synes du om denne type hjælp?;int
+Hvor stor var hjælpen?;int
