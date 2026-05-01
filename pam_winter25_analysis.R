@@ -1,7 +1,7 @@
 library(plotly)
 library(tidyverse)
-library(lme4)
-library(MuMIn)
+#library(lme4)
+#library(MuMIn)
 options("digits.secs"=6)
 options(max.print=1000)
 
@@ -10,6 +10,10 @@ source("utils/visutils.R")
 fig <- plot_ly() %>%
   config(scrollZoom = TRUE, displaylogo = FALSE, modeBarButtonsToRemove = c("pan2d","select2d","hoverCompareCartesian", "toggleSpikelines","zoom2d","toImage", "sendDataToCloud", "editInChartStudio", "lasso2d", "drawclosedpath", "drawopenpath", "drawline", "drawcircle", "eraseshape", "autoScale2d", "hoverClosestCartesian","toggleHover", "")) %>%
   layout(dragmode = "pan", showlegend=T, xaxis=list(mirror=T, ticks='outside', showline=T), yaxis=list(mirror=T, ticks='outside', showline=T))
+
+# Make PDF export work
+reticulate::use_virtualenv("/home/bastianilso/R/python-env-plotly/.venv/", required=T)
+reticulate::py_require(c('plotly','kaleido'))
 
 load('data_all.rda')
 
@@ -38,14 +42,31 @@ St <- D %>% group_by(Participant, Condition) %>%
             )
 
 St <- St %>% arrange(Participant,Game,Order) %>%
+  group_by(Participant) %>%
+  ungroup() %>%  # Ungroup to avoid issues when adding new rows
+  bind_rows(   # Add a new row for each group
+    St %>%
+      summarize(Participant2 = 1, .groups = 'drop')
+  ) %>% arrange(Participant,Game,Order)
+
+St <- St %>% arrange(Participant,Game,Order) %>%
   rownames_to_column("Chronological") %>%
   mutate(Chronological = as.numeric(Chronological))
+
+
+
+
+
 
 St <- St %>% arrange(Game,Condition) %>%
   rownames_to_column("ByCondition") %>%
   mutate(ByCondition = as.numeric(ByCondition))
 
 St = St %>% arrange(Chronological)
+
+#############
+# Averages and Standard Deviation
+############# 
 
 
 
@@ -65,6 +86,69 @@ fig %>%
             type='scattergl', mode='markers+text', marker=list(size=8), hoverinfo="text", text=paste(St$Participant, St$Condition)) %>%
   layout(yaxis=list(range=c(-0.1,1.1)))
 
+St = St %>% group_by(Participant) %>% arrange(Chronological) %>%
+  mutate(row_num = row_number())
+  
+St <- St %>% 
+  mutate(
+    Participant = case_when(
+      Participant > 5 ~ Participant-1,
+      TRUE ~ Participant
+    )
+  )
+
+St <- St %>% 
+ mutate(
+   p_text = NA,
+   p_text = case_when(
+     row_num == 1 ~ " ",
+     row_num == 2 ~ " ",
+     row_num == 3 ~ " ",
+     row_num == 4 ~ paste0("P",as.character(Participant)),   # assumes `Participant` is a column in St
+     row_num == 5 ~ " ",
+     row_num == 6 ~ " ",
+     row_num == 7 ~ " ",
+     TRUE ~ p_text      # fallback (keeps existing value or use NA_character_)
+   )
+ )
+
+
+
+custom_colors <- c("#906762ff", "#215d81ff")
+
+fig_c = fig %>%
+  add_trace(data=St, x=~Chronological, y=~acc_rate+0.01, color=~Game,
+            type='bar', showlegend=F, colors = custom_colors) %>%
+  add_trace(data=St, x=~Chronological, y=~help_rate, color=~Game, showlegend=F,
+            type='bar', opacity=0.5, colors = custom_colors) %>%
+  add_trace(x=St$Chronological, y=-0.04, text=~p_text, color=I('black'), showlegend=F,
+            type='scatter',mode="text") %>%
+  add_trace(x=c(0,max(St$Chronological)), y=mean(St$acc_rate,na.rm=T), color=I('black'), showlegend=F,
+            type='scatter', mode='lines', line=list(width=1.5), opacity=0.8) %>%
+  add_trace(x=c(0,max(St$Chronological)), y=mean(St$acc_rate+St$help_rate,na.rm=T), color=I('black'), showlegend=F,
+            type='scatter', mode='lines', line=list(dash="dot", width=1.5), opacity=0.8) %>%
+  layout(margin=list(l=0,r=0,t=55,b=0),
+         yaxis=list(range=c(-0.06,1.05), title="", tickformat = ".0%"), barmode = 'stack',
+         xaxis=list(range=c(0,72), title="", ticks="",showline=F,showticklabels=F),
+         title="BCI input recognition rate and added help during each experienced session"
+         )
+fig_c
+save_image(fig_c, "fig/recognition.pdf", width=850, height=300)
+
+
+
+St %>% group_by(Participant) %>%
+  summarize(range_acc = max(acc_rate, na.rm=T)-min(acc_rate, na.rm=T),
+            sd_acc = sd(acc_rate, na.rm=T),
+            ) %>% ungroup() %>% summarize(mean(sd_acc))
+
+St %>% group_by(Participant) %>% 
+  summarize(mean_acc = mean(acc_rate, na.rm=T))  %>%
+  summarize(sd_acc = sd(mean_acc, na.rm=T))
+
+#Using the BCI.
+# On average each participant had X % recognition and received X% help in help conditions.
+# Within each participant, the recognition varied by X%.
 
 
 #############
@@ -103,8 +187,8 @@ fig_c <- lapply(unique(St$Condition), function(cond) {
               marker=list(size=7), x=~acchelp_rate, y=~jitter(PercNormalized,amount=.02), color=I('black'), 
               type='scatter', mode='markers') %>%
     layout(annotations=list(showarrow=F,x=-0.05,y=1.08,text=paste0(cond)),
-           xaxis=list(zeroline=F,showgrid=F,title='Positive Feedback', range=c(-0.1,1.1)),
+           xaxis=list(zeroline=F,showgrid=F,title='Positive Feedback', range=c(-0.,1.1)),
            yaxis=list(zeroline=F,showgrid=F,title='Perceived Control', range=c(-0.1,1.1)))
 }) %>% subplot(., nrows=1) %>% layout(showlegend=F, yaxis=list(title="Perceived Control"), xaxis=list(title="Positive Feedback"))
 fig_c
-orca(fig_c, "fig/perc_control_pos_feedback.pdf", width=1150, height=350)
+save_image(fig_c, "fig/perc_control_pos_feedback.pdf", width=1150, height=350)
